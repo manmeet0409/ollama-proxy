@@ -1,0 +1,16 @@
+{
+  "name": "ollama-proxy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "ollama-proxy.js",
+  "type": "module",
+  "scripts": {
+    "start": "node ollama-proxy.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
+}

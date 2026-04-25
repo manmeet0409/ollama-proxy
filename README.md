@@ -102,7 +102,7 @@ API_KEYS=sk-key-1,sk-key-2
 
 **Option C — Dashboard UI** (no file editing needed):
 
-Visit `http://localhost:3000/dashboard` after starting the proxy. Use the **Add Key** form at the bottom of the left panel — keys are saved to `keys.json` automatically.
+Visit `http://localhost:11435/dashboard` after starting the proxy. Use the **Add Key** form at the bottom of the left panel — keys are saved to `keys.json` automatically.
 
 ### 3. Start the proxy
 
@@ -199,7 +199,7 @@ Features:
 - **Add/remove keys** — manage keys without editing `keys.json`
 
 ```
-http://localhost:3000/dashboard
+http://localhost:11435/dashboard
 ```
 
 ---

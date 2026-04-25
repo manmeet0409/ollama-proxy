@@ -44,7 +44,7 @@ The agent will figure out the rest.
 | 🔁 | Sequential-primary rotation | Sequential requests reuse the same key; parallel requests shift to the next active key |
 | ⚡ | Fail-count cooldowns | Key gets 60s cooldown on 429/401; after 3 consecutive failures → 10min long cooldown |
 | 🔌 | Dual API support | Handles both `/v1/chat/completions` (OpenAI-style) and `/v1/messages` (Anthropic-style) |
-| 📊 | Admin dashboard | Live key status, activity logs, and key management at `http://localhost:3000` |
+| 📊 | Admin dashboard | Live key status, activity logs, and key management at `http://localhost:11435/dashboard` |
 | 💾 | Persistent keys | Keys survive restarts via `keys.json` |
 | 🧩 | Universal compatibility | Works with every AI coding framework that supports custom OpenAI-compatible endpoints |
 | ⚙️ | Request coalescing | Simultaneous identical requests share one upstream call — no duplicate fetches |
@@ -99,6 +99,10 @@ npm install
 ```env
 API_KEYS=sk-key-1,sk-key-2
 ```
+
+**Option C — Dashboard UI** (no file editing needed):
+
+Visit `http://localhost:3000/dashboard` after starting the proxy. Use the **Add Key** form at the bottom of the left panel — keys are saved to `keys.json` automatically.
 
 ### 3. Start the proxy
 
@@ -187,7 +191,7 @@ Fields:
 
 ## Dashboard
 
-The admin dashboard is available at **`http://localhost:3000`** (only accessible from localhost).
+The admin dashboard is available at **`http://localhost:11435/dashboard`** (only accessible from localhost).
 
 Features:
 - **Key list** — name, masked key, status (Ready / Busy / Cooldown), concurrency, usage count
@@ -225,7 +229,7 @@ Test a chat completion:
 curl -X POST http://localhost:11435/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_KEY" \
-  -d '{"model":"llama3.2","messages":[{"role":"user","content":"Hi"}],"max_tokens":20}'
+  -d '{"model":"minimax-m2.7","messages":[{"role":"user","content":"Hi"}],"max_tokens":20}'
 ```
 
 ---

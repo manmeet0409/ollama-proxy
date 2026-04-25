@@ -67,7 +67,7 @@ Works with **any AI coding framework** that supports custom OpenAI-compatible or
 | **Kilo Code v5** | Direct `ollama` provider UI | Base URL field → `http://localhost:11435` |
 | **Kilo Code v7+** | `kilo.jsonc` → `openai-compatible` provider | `baseURL: "http://localhost:11435"` |
 
-> **Note:** For frameworks that forward Anthropic-style requests (`/v1/messages`), ollama-proxy transparently converts them to the Ollama-compatible `/v1/chat/completions` format.
+> **Note:** ollama-proxy passes `/v1/messages` (Anthropic-style) through to Ollama without transformation. Ollama v0.14.0+ natively supports `/v1/messages`. For older Ollama versions, use `/v1/chat/completions` instead.
 
 ---
 

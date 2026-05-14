@@ -41,8 +41,9 @@ The agent will figure out the rest.
 
 | | Feature | What it does |
 |---|---|---|
-| 🔁 | Sequential-primary rotation | Sequential requests reuse the same key; parallel requests shift to the next active key |
+| 🔁 | Sequential-primary rotation | 1 request per key; busy keys cause automatic round-robin; waits for busy keys before failing |
 | ⚡ | Fail-count cooldowns | Key gets 60s cooldown on 429/401; after 3 consecutive failures → 10min long cooldown |
+| ⏳ | Busy-wait polling | If all keys are busy, proxy polls and waits up to 2 minutes before returning 429 |
 | 🔌 | Dual API support | Handles both `/v1/chat/completions` (OpenAI-style) and `/v1/messages` (Anthropic-style) |
 | 📊 | Admin dashboard | Live key status, activity logs, and key management at `http://localhost:11435/dashboard` |
 | 💾 | Persistent keys | Keys survive restarts via `keys.json` |
@@ -140,6 +141,8 @@ Set the base URL to `http://localhost:11435` in your framework's settings (see [
 | `CACHE_TTL_TAGS` | `300000` | Cache TTL for `/api/tags` (5min) |
 | `CACHE_TTL_MODELS` | `300000` | Cache TTL for `/v1/models` (5min) |
 | `CACHE_TTL_SHOW` | `600000` | Cache TTL for `/api/show` (10min) |
+| `KEY_BUSY_POLL_INTERVAL_MS` | `500` | How often to re-check for a free key (0.5s) |
+| `KEY_BUSY_MAX_WAIT_MS` | `120000` | Max time to wait when all keys are busy (2min) |
 
 ### `keys.json` format
 
@@ -160,6 +163,22 @@ Fields:
 - `cooldownUntil` — Unix timestamp (ms), set automatically on 429
 - `usageCount` — total requests served by this key
 - `failCount` — consecutive 429/401 failures (resets after long cooldown)
+- `concurrency` — current active requests (capped at 1)
+
+---
+
+## Key Rotation Logic
+
+The proxy implements a **"Primary-First, Idle-Next"** rotation strategy with **busy-wait polling**:
+
+1. **Preference:** The primary key (index 0 or last successfully advanced index) is checked first. If it is `active` and has `concurrency: 0`, it is used.
+2. **Round-Robin:** If the primary is busy, the proxy scans the remaining keys in sequence. The first idle, active key found is picked.
+3. **Busy-Wait:** If **all** active keys are busy (none are on cooldown, but all are currently processing a request), the proxy enters a polling loop. It re-checks for a free key every `500ms` for up to `120s`.
+4. **Cooldown:** If a key receives a `429` (Rate Limit) or `401` (Unauthorized) from upstream:
+   - It enters `cooldown` status.
+   - The current request immediately retries with the next available key.
+   - The key remains in cooldown for `60s` (short) or `10min` (after 3 failures).
+5. **Exhaustion:** If no keys become available after the full 120s wait period, the proxy returns a `429 All API keys are rate-limited` response to the client.
 
 ---
 

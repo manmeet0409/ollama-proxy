@@ -196,10 +196,42 @@ export async function fetchWithKeyRotation(
 
         const isConcurrencyError =
           /concurrent|active|rate.limit.reached.*try.again/i.test(errorBody);
+
+        // "this model requires a subscription" is a PERMISSION error (not quota).
+        // We detect it by checking for permission_error type in the JSON body.
+        const isModelPermissionError = (() => {
+          try {
+            const parsed = JSON.parse(errorBody);
+            return parsed?.error?.type === "permission_error";
+          } catch {
+            return false;
+          }
+        })();
+
         const isQuotaError =
-          /quota|exhausted|balance|credit|limit|subscription/i.test(errorBody);
+          !isModelPermissionError &&
+          /quota|exhausted|balance|credit|limit/i.test(errorBody);
 
         let retryAfter = headers["retry-after"];
+
+        if (isModelPermissionError) {
+          // This is a permanent model-access issue — no key rotation will help.
+          // Release the key without cooldown and return the upstream error to the client.
+          releaseKey(keyObj);
+          console.warn(
+            `[REQ ${reqId}] key=${keyIdx} model permission error (subscription required) — aborting rotation`,
+          );
+          if (errorBody) {
+            console.warn(
+              `[REQ ${reqId}] key=${keyIdx} response: ${errorBody.slice(0, 200)}`,
+            );
+          }
+          if (!res.headersSent) {
+            res.writeHead(status, { "content-type": "application/json" });
+            res.end(errorBody || JSON.stringify({ error: "Model requires a subscription" }));
+          }
+          return;
+        }
 
         if (isConcurrencyError && !isQuotaError) {
           console.warn(

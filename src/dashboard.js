@@ -230,11 +230,17 @@ export function getDashboardHTML() {
 
     .btn-danger-ghost { 
       background: transparent; color: var(--text-muted); 
-      border: 1px solid var(--glass-border); margin-left: 0.5rem; 
+      border: 1px solid var(--glass-border); 
     }
     .btn-danger-ghost:hover { 
       background: rgba(244, 63, 94, 0.1); 
       color: var(--error); border-color: rgba(244, 63, 94, 0.3); 
+    }
+    
+    .key-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
     
     .add-section { margin-top: 2rem; flex-shrink: 0; }
@@ -301,7 +307,10 @@ export function getDashboardHTML() {
     <div class="panel panel-keys">
       <div class="header">
         <h1>Gateway Nodes</h1>
-        <button class="btn btn-ghost" onclick="loadKeys()">Sync</button>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-ghost" id="release-all-btn" onclick="releaseAllCooldowns()" style="color: var(--warning); border-color: rgba(245, 158, 11, 0.3); display: none;">Release All</button>
+          <button class="btn btn-ghost" onclick="loadKeys()">Sync</button>
+        </div>
       </div>
       
       <div class="key-list" id="key-list"></div>
@@ -346,6 +355,12 @@ export function getDashboardHTML() {
         return;
       }
 
+      const hasCooldowns = keys.some(k => k.status === 'cooldown');
+      const releaseAllBtn = document.getElementById('release-all-btn');
+      if (releaseAllBtn) {
+        releaseAllBtn.style.display = hasCooldowns ? 'inline-block' : 'none';
+      }
+
       list.innerHTML = keys.map(k => {
         const isBusy = k.concurrency > 0;
         const statusClass = k.status === 'active' ? (isBusy ? 'busy' : 'active') : 'cooldown';
@@ -354,6 +369,10 @@ export function getDashboardHTML() {
         const nameContent = editingId === k.index 
           ? \`<input class="key-name-input" id="edit-\${k.index}" value="\${escapeHtml(k.name || '')}" onblur="saveName(\${k.index})" onkeydown="if(event.key==='Enter')this.blur()">\`
           : \`<span class="key-name" onclick="editName(\${k.index})">\${escapeHtml(k.name || 'Unnamed Node')}</span>\`;
+
+        const releaseButton = k.status === 'cooldown'
+          ? \`<button class="btn btn-ghost" style="color: var(--success); border-color: rgba(16, 185, 129, 0.3);" onclick="releaseCooldown(\${k.index})">Release</button>\`
+          : '';
 
         return \`
           <div class="key-item \${statusClass}">
@@ -374,6 +393,7 @@ export function getDashboardHTML() {
             </div>
 
             <div class="key-actions">
+              \${releaseButton}
               <button class="btn btn-danger-ghost" onclick="deleteKey(\${k.index})">Revoke</button>
             </div>
           </div>
@@ -432,6 +452,34 @@ export function getDashboardHTML() {
       if (!confirm('Permanently revoke this node key?')) return;
       await fetch('/api/keys/' + index, { method: 'DELETE' });
       loadKeys();
+    }
+
+    async function releaseCooldown(index) {
+      try {
+        const res = await fetch('/api/keys/' + index + '/release', { method: 'POST' });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to release cooldown');
+        }
+        loadKeys();
+      } catch (err) {
+        console.error(err);
+        alert(err.message);
+      }
+    }
+
+    async function releaseAllCooldowns() {
+      try {
+        const res = await fetch('/api/keys/release-all', { method: 'POST' });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to release all cooldowns');
+        }
+        loadKeys();
+      } catch (err) {
+        console.error(err);
+        alert(err.message);
+      }
     }
 
     function copyKey(text, btn) {

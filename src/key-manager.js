@@ -205,3 +205,35 @@ export function earliestRetryAfterSecs() {
   }
   return soonest === Infinity ? 60 : Math.ceil(soonest / 1000);
 }
+
+export function releaseCooldown(index) {
+  if (index < 0 || index >= API_KEYS.length) return false;
+  const keyObj = API_KEYS[index];
+  if (keyObj.status === "cooldown") {
+    keyObj.status = "active";
+    keyObj.cooldownUntil = null;
+    keyObj.failCount = 0;
+    console.log(`[KEY] Manual cooldown release for key=${index}`);
+    saveKeys();
+    return true;
+  }
+  return false;
+}
+
+export function releaseAllCooldowns() {
+  let changed = false;
+  for (let i = 0; i < API_KEYS.length; i++) {
+    const keyObj = API_KEYS[i];
+    if (keyObj.status === "cooldown") {
+      keyObj.status = "active";
+      keyObj.cooldownUntil = null;
+      keyObj.failCount = 0;
+      console.log(`[KEY] Manual cooldown release for key=${i}`);
+      changed = true;
+    }
+  }
+  if (changed) {
+    saveKeys();
+  }
+  return changed;
+}

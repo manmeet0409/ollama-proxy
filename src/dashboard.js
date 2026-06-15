@@ -84,6 +84,18 @@ export function getDashboardHTML() {
       flex-shrink: 0; 
     }
 
+    .node-count {
+      margin-left: 0.75rem;
+      padding: 0.25rem 0.65rem;
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: 999px;
+      color: var(--accent);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      background: rgba(99, 102, 241, 0.08);
+    }
+
     h1 { 
       font-size: 1.5rem; 
       font-weight: 600; 
@@ -115,7 +127,7 @@ export function getDashboardHTML() {
       border-radius: 16px; 
       padding: 1.5rem; 
       display: grid; 
-      grid-template-columns: auto 1fr auto; 
+      grid-template-columns: auto auto 1fr auto; 
       gap: 1.5rem; 
       align-items: center; 
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -148,6 +160,20 @@ export function getDashboardHTML() {
       display: inline-block; 
       margin-right: 0.75rem; 
       position: relative;
+    }
+    
+    .serial-number {
+      width: 2.2rem;
+      height: 2.2rem;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: var(--text-muted);
+      border: 1px solid var(--glass-border);
+      background: rgba(255,255,255,0.04);
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      font-weight: 600;
     }
     
     .active .status-indicator { background: var(--success); box-shadow: 0 0 12px var(--success-glow); }
@@ -243,7 +269,7 @@ export function getDashboardHTML() {
       gap: 0.5rem;
     }
     
-    .add-section { margin-top: 2rem; flex-shrink: 0; }
+    .add-section { margin-top: 0; flex-shrink: 0; }
     .add-form { 
       display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; 
       background: rgba(0,0,0,0.2); padding: 1.5rem; 
@@ -306,23 +332,23 @@ export function getDashboardHTML() {
   <div class="layout">
     <div class="panel panel-keys">
       <div class="header">
-        <h1>Gateway Nodes</h1>
+        <h1>Gateway Nodes <span class="node-count" id="node-count">0 keys</span></h1>
         <div style="display: flex; gap: 0.5rem;">
           <button class="btn btn-ghost" id="release-all-btn" onclick="releaseAllCooldowns()" style="color: var(--warning); border-color: rgba(245, 158, 11, 0.3); display: none;">Release All</button>
           <button class="btn btn-ghost" onclick="loadKeys()">Sync</button>
         </div>
       </div>
       
-      <div class="key-list" id="key-list"></div>
-      
       <div class="add-section">
         <form class="add-form" onsubmit="addKey(event)">
-          <input type="text" id="add-name" placeholder="Node Alias (e.g. Primary Server)">
           <input type="text" id="add-key" placeholder="API Key" required>
+          <input type="text" id="add-name" placeholder="Node Alias (e.g. Primary Server)">
           <button type="submit" class="btn btn-primary">Deploy Key</button>
         </form>
         <div id="error" style="color:var(--error); font-size:0.85rem; margin-top:0.75rem;"></div>
       </div>
+      
+      <div class="key-list" id="key-list"></div>
     </div>
     
     <div class="panel panel-logs">
@@ -350,18 +376,23 @@ export function getDashboardHTML() {
 
     function renderKeys(keys) {
       const list = document.getElementById('key-list');
+      const nodeCount = document.getElementById('node-count');
+      const safeKeys = keys || [];
+      if (nodeCount) {
+        nodeCount.textContent = `${safeKeys.length} ${safeKeys.length === 1 ? 'key' : 'keys'}`;
+      }
       if (!keys || keys.length === 0) {
         list.innerHTML = '<div class="empty">No gateway nodes configured</div>';
         return;
       }
 
-      const hasCooldowns = keys.some(k => k.status === 'cooldown');
+      const hasCooldowns = safeKeys.some(k => k.status === 'cooldown');
       const releaseAllBtn = document.getElementById('release-all-btn');
       if (releaseAllBtn) {
         releaseAllBtn.style.display = hasCooldowns ? 'inline-block' : 'none';
       }
 
-      list.innerHTML = keys.map(k => {
+      list.innerHTML = safeKeys.map(k => {
         const isBusy = k.concurrency > 0;
         const statusClass = k.status === 'active' ? (isBusy ? 'busy' : 'active') : 'cooldown';
         const statusText = k.status === 'active' ? (isBusy ? 'Processing' : 'Standby') : 'Cooldown ' + k.cooldownRemainingSecs + 's';
@@ -373,14 +404,17 @@ export function getDashboardHTML() {
         const releaseButton = k.status === 'cooldown'
           ? \`<button class="btn btn-ghost" style="color: var(--success); border-color: rgba(16, 185, 129, 0.3);" onclick="releaseCooldown(\${k.index})">Release</button>\`
           : '';
+        const fullKey = k.fullKey || k.key;
+        const displayKey = k.key || (fullKey.slice(0, 8) + "...");
 
         return \`
           <div class="key-item \${statusClass}">
+            <div class="serial-number">\${k.index + 1}</div>
             <div class="key-info">
               <div class="name-wrapper">\${nameContent}</div>
               <div class="key-preview">
-                \${k.key}
-                <span class="copy-btn" onclick="copyKey('\${k.key}', this)" title="Copy Key">
+                \${escapeHtml(displayKey)}
+                <span class="copy-btn" onclick='copyKey(${JSON.stringify(fullKey)}, this)' title="Copy Key">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                 </span>
               </div>
@@ -529,6 +563,11 @@ export function getDashboardHTML() {
 
     function clearLogs() { logsData = []; renderLogs(); }
     function escapeHtml(s) { return (s||'').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+    if (window.EventSource) {
+      const reloadSource = new EventSource('/__dev/reload');
+      reloadSource.addEventListener('reload', () => window.location.reload());
+    }
 
     loadKeys();
     loadLogs();

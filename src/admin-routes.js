@@ -10,7 +10,7 @@ import {
   releaseCooldown,
   releaseAllCooldowns,
 } from "./key-manager.js";
-import { getLogs } from "./logger.js";
+import { getLogs, clearLogs } from "./logger.js";
 import { receiveBody } from "./http-helpers.js";
 import { getDashboardHTML } from "./dashboard.js";
 import fs from "fs";
@@ -49,11 +49,21 @@ export async function handleAdminRoutes(req, res) {
   }
 
   // ── Logs API (localhost only) ───────────────────────────────────────────────
-  if (req.method === "GET" && req.url === "/api/logs") {
+  if ((req.method === "GET" && req.url === "/api/logs") || (req.method === "POST" && req.url === "/api/logs/clear")) {
     if (!isLocalhost) return forbidden(res, "Logs API only accessible from localhost");
-    res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ logs: getLogs() }));
-    return true;
+
+    if (req.method === "GET") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ logs: getLogs() }));
+      return true;
+    }
+
+    if (req.method === "POST") {
+      clearLogs();
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ cleared: true }));
+      return true;
+    }
   }
 
   // ── Dev reload stream (localhost only) ──────────────────────────────────────

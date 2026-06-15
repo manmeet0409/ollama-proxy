@@ -41,3 +41,8 @@ console.error = (...args) => {
 export function getLogs() {
   return logs;
 }
+
+export function clearLogs() {
+  logs.length = 0;
+}
+

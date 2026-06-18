@@ -62,17 +62,21 @@ export function loadKeys() {
 
 export function saveKeys() {
   try {
-    const data = JSON.stringify({
-      keys: API_KEYS.map((k) => ({
-        key: k.key,
-        name: k.name,
-        status: k.status,
-        cooldownUntil: k.cooldownUntil,
-        usageCount: k.usageCount,
-        failCount: k.failCount,
-      })),
-      savedAt: new Date().toISOString(),
-    }, null, 2);
+    const data = JSON.stringify(
+      {
+        keys: API_KEYS.map((k) => ({
+          key: k.key,
+          name: k.name,
+          status: k.status,
+          cooldownUntil: k.cooldownUntil,
+          usageCount: k.usageCount,
+          failCount: k.failCount,
+        })),
+        savedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    );
     writeFileSync(KEYS_FILE, data);
   } catch (err) {
     console.error(`[KEYS] Failed to save: ${err.message}`);
@@ -95,10 +99,16 @@ export function refreshCooldowns() {
   const now = Date.now();
   let changed = false;
   for (const k of API_KEYS) {
-    if (k.status === "cooldown" && k.cooldownUntil !== null && now >= k.cooldownUntil) {
+    if (
+      k.status === "cooldown" &&
+      k.cooldownUntil !== null &&
+      now >= k.cooldownUntil
+    ) {
       k.cooldownUntil = null;
       k.status = "active";
-      console.log(`[KEY] key=${API_KEYS.indexOf(k)} cooldown expired → active (failCount=${k.failCount})`);
+      console.log(
+        `[KEY] key=${API_KEYS.indexOf(k)} cooldown expired → active (failCount=${k.failCount})`,
+      );
       changed = true;
     }
   }
@@ -118,10 +128,16 @@ function advanceActiveKey() {
 }
 
 export function releaseKey(keyObj) {
+  const old = keyObj.concurrency;
   keyObj.concurrency = Math.max(0, keyObj.concurrency - 1);
+  if (old !== keyObj.concurrency) {
+    console.log(
+      `[KEY] released key=${API_KEYS.indexOf(keyObj)} (concurrency=${keyObj.concurrency})`,
+    );
+  }
 }
 
-export function cooldownKey(keyObj, retryAfterHeader) {
+export function cooldownKey(keyObj, retryAfterHeader, isQuota = false) {
   if (keyObj.status === "cooldown") {
     releaseKey(keyObj);
     return;
@@ -131,15 +147,38 @@ export function cooldownKey(keyObj, retryAfterHeader) {
   const keyIdx = API_KEYS.indexOf(keyObj);
 
   let ms;
-  if (keyObj.failCount >= MAX_FAILS_BEFORE_LONG_COOLDOWN) {
+  if (isQuota) {
     ms = LONG_COOLDOWN_MS;
-    console.warn(`[KEY] key=${keyIdx} fail #${keyObj.failCount} → LONG cooldown ${ms / 1000}s — resetting failCount`);
+    console.warn(
+      `[KEY] key=${keyIdx} QUOTA EXHAUSTED → immediate LONG cooldown ${ms / 1000}s`,
+    );
+    keyObj.failCount = 0; // Reset as we're already at max penalty
+  } else if (keyObj.failCount >= MAX_FAILS_BEFORE_LONG_COOLDOWN) {
+    ms = LONG_COOLDOWN_MS;
+    console.warn(
+      `[KEY] key=${keyIdx} fail #${keyObj.failCount} → LONG cooldown ${ms / 1000}s — resetting failCount`,
+    );
     keyObj.failCount = 0;
   } else {
-    ms = retryAfterHeader
-      ? parseInt(retryAfterHeader, 10) * 1000
-      : DEFAULT_COOLDOWN_MS;
-    console.warn(`[KEY] key=${keyIdx} fail #${keyObj.failCount} → short cooldown ${ms / 1000}s`);
+    if (retryAfterHeader) {
+      // Retry-After can be seconds (e.g. "60") or a Date string.
+      const parsed = parseInt(retryAfterHeader, 10);
+      if (!isNaN(parsed)) {
+        ms = parsed * 1000;
+      } else {
+        const date = new Date(retryAfterHeader);
+        if (!isNaN(date.getTime())) {
+          ms = Math.max(0, date.getTime() - Date.now());
+        } else {
+          ms = DEFAULT_COOLDOWN_MS;
+        }
+      }
+    } else {
+      ms = DEFAULT_COOLDOWN_MS;
+    }
+    console.warn(
+      `[KEY] key=${keyIdx} fail #${keyObj.failCount} → short cooldown ${ms / 1000}s`,
+    );
   }
 
   keyObj.status = "cooldown";
@@ -165,4 +204,36 @@ export function earliestRetryAfterSecs() {
     }
   }
   return soonest === Infinity ? 60 : Math.ceil(soonest / 1000);
+}
+
+export function releaseCooldown(index) {
+  if (index < 0 || index >= API_KEYS.length) return false;
+  const keyObj = API_KEYS[index];
+  if (keyObj.status === "cooldown") {
+    keyObj.status = "active";
+    keyObj.cooldownUntil = null;
+    keyObj.failCount = 0;
+    console.log(`[KEY] Manual cooldown release for key=${index}`);
+    saveKeys();
+    return true;
+  }
+  return false;
+}
+
+export function releaseAllCooldowns() {
+  let changed = false;
+  for (let i = 0; i < API_KEYS.length; i++) {
+    const keyObj = API_KEYS[i];
+    if (keyObj.status === "cooldown") {
+      keyObj.status = "active";
+      keyObj.cooldownUntil = null;
+      keyObj.failCount = 0;
+      console.log(`[KEY] Manual cooldown release for key=${i}`);
+      changed = true;
+    }
+  }
+  if (changed) {
+    saveKeys();
+  }
+  return changed;
 }

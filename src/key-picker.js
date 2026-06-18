@@ -11,16 +11,9 @@
 // The `excluding` set lets the retry loop skip keys that already 429'd
 // for this specific request, preventing infinite retry on the same bad key.
 
-import {
-  KEY_BUSY_POLL_INTERVAL_MS,
-  KEY_BUSY_MAX_WAIT_MS,
-} from "./config.js";
+import { KEY_BUSY_POLL_INTERVAL_MS, KEY_BUSY_MAX_WAIT_MS } from "./config.js";
 
-import {
-  getKeys,
-  getActiveKeyIndex,
-  refreshCooldowns,
-} from "./key-manager.js";
+import { getKeys, getActiveKeyIndex, refreshCooldowns } from "./key-manager.js";
 
 /**
  * Sleep helper for the busy-wait polling loop.
@@ -31,7 +24,7 @@ function sleep(ms) {
 }
 
 /**
- * Try to find an available key synchronously (one sweep).
+ * Try to find an available key synchronously (one sweep) and atomically mark it busy.
  *
  * @param {Set<object>|null} excluding - Keys to skip (already 429'd this request)
  * @returns {{ keyObj: object, reason: string } | null}
@@ -48,6 +41,7 @@ function trySweep(excluding) {
     primary.concurrency === 0 &&
     (!excluding || !excluding.has(primary))
   ) {
+    primary.concurrency++; // Atomic claim
     return { keyObj: primary, reason: `primary key=${primaryIdx}` };
   }
 
@@ -55,7 +49,12 @@ function trySweep(excluding) {
   for (let i = 1; i < total; i++) {
     const idx = (primaryIdx + i) % total;
     const k = keys[idx];
-    if (k.status === "active" && k.concurrency === 0 && (!excluding || !excluding.has(k))) {
+    if (
+      k.status === "active" &&
+      k.concurrency === 0 &&
+      (!excluding || !excluding.has(k))
+    ) {
+      k.concurrency++; // Atomic claim
       return { keyObj: k, reason: `round-robin key=${idx}` };
     }
   }
@@ -70,7 +69,11 @@ function trySweep(excluding) {
 function hasWorthWaitingKeys(excluding) {
   const keys = getKeys();
   for (const k of keys) {
-    if (k.status === "active" && k.concurrency > 0 && (!excluding || !excluding.has(k))) {
+    if (
+      k.status === "active" &&
+      k.concurrency > 0 &&
+      (!excluding || !excluding.has(k))
+    ) {
       return true;
     }
   }
@@ -84,14 +87,16 @@ function hasWorthWaitingKeys(excluding) {
  * @returns {Promise<object|null>} - The key entry, or null if all exhausted
  */
 export async function pickKey(excluding) {
+  // Synchronous refresh to prevent yielding the event loop before the first sweep
   refreshCooldowns();
 
   // Fast path: immediate sweep
   const found = trySweep(excluding);
   if (found) {
-    found.keyObj.concurrency++;
     found.keyObj.usageCount++;
-    console.log(`[KEY] picked → ${found.reason} (concurrency=${found.keyObj.concurrency})`);
+    console.log(
+      `[KEY] picked → ${found.reason} (concurrency=${found.keyObj.concurrency})`,
+    );
     return found.keyObj;
   }
 
@@ -103,7 +108,16 @@ export async function pickKey(excluding) {
   }
 
   const deadline = Date.now() + KEY_BUSY_MAX_WAIT_MS;
-  console.log(`[KEY] all keys busy — entering wait loop (max ${KEY_BUSY_MAX_WAIT_MS / 1000}s)`);
+  const keys = getKeys();
+  const activeCount = keys.filter((k) => k.status === "active").length;
+  const busyCount = keys.filter(
+    (k) => k.status === "active" && k.concurrency > 0,
+  ).length;
+  const coolingCount = keys.filter((k) => k.status === "cooldown").length;
+
+  console.log(
+    `[KEY] all keys busy — entering wait loop (max ${KEY_BUSY_MAX_WAIT_MS / 1000}s) [Total=${keys.length} Active=${activeCount} Busy=${busyCount} Cooling=${coolingCount}]`,
+  );
 
   while (Date.now() < deadline) {
     await sleep(KEY_BUSY_POLL_INTERVAL_MS);
@@ -111,9 +125,10 @@ export async function pickKey(excluding) {
 
     const retry = trySweep(excluding);
     if (retry) {
-      retry.keyObj.concurrency++;
       retry.keyObj.usageCount++;
-      console.log(`[KEY] picked after wait → ${retry.reason} (concurrency=${retry.keyObj.concurrency})`);
+      console.log(
+        `[KEY] picked after wait → ${retry.reason} (concurrency=${retry.keyObj.concurrency})`,
+      );
       return retry.keyObj;
     }
 

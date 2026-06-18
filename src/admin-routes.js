@@ -2,7 +2,14 @@
 //
 // Localhost-only management endpoints for key CRUD, logs, health, and dashboard.
 
-import { getKeys, saveKeys, refreshCooldowns, getActiveKeyIndex } from "./key-manager.js";
+import {
+  getKeys,
+  saveKeys,
+  refreshCooldowns,
+  getActiveKeyIndex,
+  releaseCooldown,
+  releaseAllCooldowns,
+} from "./key-manager.js";
 import { getLogs } from "./logger.js";
 import { receiveBody } from "./http-helpers.js";
 import { getDashboardHTML } from "./dashboard.js";
@@ -101,6 +108,17 @@ async function handleKeysAPI(req, res) {
     return handleAddKey(req, res, keys);
   }
 
+  // POST /api/keys/release-all
+  if (req.method === "POST" && req.url === "/api/keys/release-all") {
+    return handleReleaseAllCooldowns(res);
+  }
+
+  // POST /api/keys/:index/release
+  const releaseMatch = req.url.match(/^\/api\/keys\/(\d+)\/release$/);
+  if (req.method === "POST" && releaseMatch) {
+    return handleReleaseCooldown(res, parseInt(releaseMatch[1], 10));
+  }
+
   // PATCH /api/keys/:index
   const patchMatch = req.url.match(/^\/api\/keys\/(\d+)$/);
   if (req.method === "PATCH" && patchMatch) {
@@ -189,5 +207,25 @@ function handleDeleteKey(res, keys, index) {
   console.log(`[ADMIN] Removed key at index ${index}`);
   res.writeHead(200, { "content-type": "application/json" });
   res.end(JSON.stringify({ removed: index }));
+  return true;
+}
+
+function handleReleaseAllCooldowns(res) {
+  const released = releaseAllCooldowns();
+  res.writeHead(200, { "content-type": "application/json" });
+  res.end(JSON.stringify({ released }));
+  return true;
+}
+
+function handleReleaseCooldown(res, index) {
+  const keys = getKeys();
+  if (index < 0 || index >= keys.length) {
+    res.writeHead(404, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "Key not found" }));
+    return true;
+  }
+  const released = releaseCooldown(index);
+  res.writeHead(200, { "content-type": "application/json" });
+  res.end(JSON.stringify({ index, released }));
   return true;
 }

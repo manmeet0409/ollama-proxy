@@ -5,7 +5,8 @@
   "main": "ollama-proxy.js",
   "type": "module",
   "scripts": {
-    "start": "node ollama-proxy.js"
+    "start": "node ollama-proxy.js",
+    "dev": "node --watch ollama-proxy.js"
   },
   "keywords": [],
   "author": "",

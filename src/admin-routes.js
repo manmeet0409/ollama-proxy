@@ -10,9 +10,24 @@ import {
   releaseCooldown,
   releaseAllCooldowns,
 } from "./key-manager.js";
-import { getLogs } from "./logger.js";
+import { getLogs, clearLogs } from "./logger.js";
 import { receiveBody } from "./http-helpers.js";
 import { getDashboardHTML } from "./dashboard.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(__dirname, "..");
+const watchPaths = [
+  path.join(projectRoot, "src"),
+  path.join(projectRoot, "ollama-proxy.js"),
+  path.join(projectRoot, "package.json"),
+];
+const reloadClients = new Set();
+let reloadTimer = null;
+
+startDevWatcher();
 
 /**
  * Handle admin/management requests.
@@ -34,10 +49,38 @@ export async function handleAdminRoutes(req, res) {
   }
 
   // ── Logs API (localhost only) ───────────────────────────────────────────────
-  if (req.method === "GET" && req.url === "/api/logs") {
+  if ((req.method === "GET" && req.url === "/api/logs") || (req.method === "POST" && req.url === "/api/logs/clear")) {
     if (!isLocalhost) return forbidden(res, "Logs API only accessible from localhost");
-    res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ logs: getLogs() }));
+
+    if (req.method === "GET") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ logs: getLogs() }));
+      return true;
+    }
+
+    if (req.method === "POST") {
+      clearLogs();
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ cleared: true }));
+      return true;
+    }
+  }
+
+  // ── Dev reload stream (localhost only) ──────────────────────────────────────
+  if (req.method === "GET" && req.url === "/__dev/reload") {
+    if (!isLocalhost) return forbidden(res, "Dev reload API only accessible from localhost");
+    res.writeHead(200, {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+      "x-accel-buffering": "no",
+    });
+    res.write(": connected\n\n");
+    reloadClients.add(res);
+
+    req.on("close", () => {
+      reloadClients.delete(res);
+    });
     return true;
   }
 
@@ -50,6 +93,26 @@ export async function handleAdminRoutes(req, res) {
   }
 
   return false; // Not an admin route
+}
+
+function startDevWatcher() {
+  for (const watchPath of watchPaths) {
+    if (!fs.existsSync(watchPath)) continue;
+
+    fs.watch(watchPath, { recursive: true }, () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => {
+        console.log("[DEV] Source change detected — notifying connected dashboards");
+        broadcastReload();
+      }, 250);
+    });
+  }
+}
+
+function broadcastReload() {
+  for (const res of reloadClients) {
+    res.write(`event: reload\ndata: ${JSON.stringify({ ok: true, time: Date.now() })}\n\n`);
+  }
 }
 
 function forbidden(res, message) {
@@ -92,6 +155,7 @@ async function handleKeysAPI(req, res) {
         index: i,
         name: k.name,
         key: k.key.slice(0, 8) + "...",
+        fullKey: k.key,
         status: k.status,
         concurrency: k.concurrency,
         usageCount: k.usageCount,

@@ -93,8 +93,22 @@ function shutdown(signal) {
   }, 10_000).unref();
 }
 
+function handleServerError(err) {
+  if (err.code === "EADDRINUSE") {
+    console.error(`[SERVER] Port ${PORT} is already in use.`);
+    console.error(`[SERVER] Stop the existing process using port ${PORT}, or set a different PORT.`);
+    console.error(`[SERVER] Example: set PORT=11436 && npm run dev`);
+    process.exit(1);
+  }
+
+  console.error("[SERVER] Failed to start:", err);
+  process.exit(1);
+}
+
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
+
+server.on("error", handleServerError);
 
 server.listen(PORT, () => {
   console.log(`Proxy v${VERSION} running on http://localhost:${PORT}`);

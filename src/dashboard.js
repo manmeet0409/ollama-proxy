@@ -76,12 +76,26 @@ export function getDashboardHTML() {
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
     
+    .panel-keys { position: relative; }
+    
     .header { 
       display: flex; 
       justify-content: space-between; 
       align-items: center; 
       margin-bottom: 2rem; 
       flex-shrink: 0; 
+    }
+
+    .node-count {
+      margin-left: 0.75rem;
+      padding: 0.25rem 0.65rem;
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: 999px;
+      color: var(--accent);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      background: rgba(99, 102, 241, 0.08);
     }
 
     h1 { 
@@ -109,13 +123,54 @@ export function getDashboardHTML() {
       padding-right: 0.5rem;
     }
 
+    .scroll-keys-bottom {
+      position: sticky;
+      bottom: 1.5rem;
+      align-self: flex-end;
+      flex-shrink: 0;
+      z-index: 10;
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      border: 1px solid rgba(99,102,241,0.45);
+      background: rgba(99,102,241,0.9);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+      transition: opacity 0.18s ease, transform 0.18s ease, background 0.2s, box-shadow 0.2s;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px) scale(0.96);
+      line-height: 1;
+      padding: 0;
+    }
+
+    .scroll-keys-bottom.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    .scroll-keys-bottom:hover {
+      background: rgba(129,140,248,0.95);
+      box-shadow: 0 16px 36px rgba(99,102,241,0.35);
+      transform: translateY(-2px) scale(1.04);
+    }
+
+    .scroll-keys-bottom .arrow-up { display: none; }
+    .scroll-keys-bottom.scrolled .arrow-down { display: none; }
+    .scroll-keys-bottom.scrolled .arrow-up { display: block; }
+
     .key-item { 
       background: rgba(255, 255, 255, 0.02); 
       border: 1px solid var(--glass-border); 
       border-radius: 16px; 
       padding: 1.5rem; 
       display: grid; 
-      grid-template-columns: auto 1fr auto; 
+      grid-template-columns: auto auto 1fr auto; 
       gap: 1.5rem; 
       align-items: center; 
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -148,6 +203,20 @@ export function getDashboardHTML() {
       display: inline-block; 
       margin-right: 0.75rem; 
       position: relative;
+    }
+    
+    .serial-number {
+      width: 2.2rem;
+      height: 2.2rem;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: var(--text-muted);
+      border: 1px solid var(--glass-border);
+      background: rgba(255,255,255,0.04);
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      font-weight: 600;
     }
     
     .active .status-indicator { background: var(--success); box-shadow: 0 0 12px var(--success-glow); }
@@ -243,7 +312,7 @@ export function getDashboardHTML() {
       gap: 0.5rem;
     }
     
-    .add-section { margin-top: 2rem; flex-shrink: 0; }
+    .add-section { margin-top: 0; flex-shrink: 0; }
     .add-form { 
       display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; 
       background: rgba(0,0,0,0.2); padding: 1.5rem; 
@@ -260,6 +329,49 @@ export function getDashboardHTML() {
     .logs-panel { 
       flex: 1; display: flex; flex-direction: column; gap: 0.6rem; 
       font-family: var(--font-mono); font-size: 0.8rem; padding-right: 0.5rem;
+      overflow-y: auto;
+      min-height: 0;
+    }
+    
+    .logs-toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      flex-shrink: 0;
+    }
+
+    .logs-toolbar-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-group, .log-actions {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-btn {
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid var(--glass-border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .filter-btn:hover, .filter-btn.active {
+      color: #fff;
+      border-color: rgba(99,102,241,0.45);
+      background: rgba(99,102,241,0.18);
     }
     
     .log-row { 
@@ -284,6 +396,8 @@ export function getDashboardHTML() {
     }
     
     .info .log-level { background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.2); }
+    .response .log-level { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.2); }
+    .cached .log-level { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.2); }
     .warn .log-level { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); }
     .error .log-level { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244,63,94,0.2); }
     
@@ -306,29 +420,47 @@ export function getDashboardHTML() {
   <div class="layout">
     <div class="panel panel-keys">
       <div class="header">
-        <h1>Gateway Nodes</h1>
+        <h1>Gateway Nodes <span class="node-count" id="node-count">0 keys</span></h1>
         <div style="display: flex; gap: 0.5rem;">
           <button class="btn btn-ghost" id="release-all-btn" onclick="releaseAllCooldowns()" style="color: var(--warning); border-color: rgba(245, 158, 11, 0.3); display: none;">Release All</button>
           <button class="btn btn-ghost" onclick="loadKeys()">Sync</button>
         </div>
       </div>
       
-      <div class="key-list" id="key-list"></div>
-      
       <div class="add-section">
         <form class="add-form" onsubmit="addKey(event)">
-          <input type="text" id="add-name" placeholder="Node Alias (e.g. Primary Server)">
           <input type="text" id="add-key" placeholder="API Key" required>
+          <input type="text" id="add-name" placeholder="Node Alias (e.g. Primary Server)">
           <button type="submit" class="btn btn-primary">Deploy Key</button>
         </form>
         <div id="error" style="color:var(--error); font-size:0.85rem; margin-top:0.75rem;"></div>
       </div>
+      
+      <div class="key-list" id="key-list"></div>
+      <button class="scroll-keys-bottom" id="scroll-keys-bottom" onclick="toggleScrollKeys()" title="Scroll to latest key">
+        <svg class="arrow-down" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+        <svg class="arrow-up" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+      </button>
     </div>
     
     <div class="panel panel-logs">
-      <div class="header" style="margin-bottom:1.5rem">
+      <div class="header" style="margin-bottom:1rem">
         <h2>Live Traffic</h2>
         <button class="btn btn-ghost" style="padding:0.4rem 0.8rem" onclick="clearLogs()">Clear</button>
+      </div>
+      <div class="logs-toolbar">
+        <div class="logs-toolbar-row">
+          <div class="filter-group" aria-label="Log filters">
+            <button class="filter-btn" data-filter="error">Errors</button>
+            <button class="filter-btn" data-filter="response">Responses</button>
+            <button class="filter-btn" data-filter="info">Infos</button>
+            <button class="filter-btn" data-filter="cached">Cached</button>
+            <button class="filter-btn" data-filter="all">All</button>
+          </div>
+          <div class="log-actions">
+            <button class="btn btn-ghost" id="pause-logs-btn" style="padding:0.4rem 0.8rem" onclick="toggleLogCapture()">Pause</button>
+          </div>
+        </div>
       </div>
       <div class="logs-panel" id="logs"></div>
     </div>
@@ -336,6 +468,8 @@ export function getDashboardHTML() {
 
   <script>
     let logsData = [];
+    let logsPaused = false;
+    let activeLogFilter = 'error';
     let editingId = null;
 
     async function loadKeys() {
@@ -350,37 +484,47 @@ export function getDashboardHTML() {
 
     function renderKeys(keys) {
       const list = document.getElementById('key-list');
-      if (!keys || keys.length === 0) {
+      const nodeCount = document.getElementById('node-count');
+      const safeKeys = keys || [];
+      const sortedKeys = [...safeKeys].sort((a, b) => b.index - a.index);
+      if (nodeCount) {
+        nodeCount.textContent = safeKeys.length + " " + (safeKeys.length === 1 ? "key" : "keys");
+      }
+      if (!keys || sortedKeys.length === 0) {
         list.innerHTML = '<div class="empty">No gateway nodes configured</div>';
+        requestAnimationFrame(updateScrollKeysButton);
         return;
       }
 
-      const hasCooldowns = keys.some(k => k.status === 'cooldown');
+      const hasCooldowns = sortedKeys.some(k => k.status === 'cooldown');
       const releaseAllBtn = document.getElementById('release-all-btn');
       if (releaseAllBtn) {
         releaseAllBtn.style.display = hasCooldowns ? 'inline-block' : 'none';
       }
 
-      list.innerHTML = keys.map(k => {
+      list.innerHTML = sortedKeys.map((k, i) => {
         const isBusy = k.concurrency > 0;
         const statusClass = k.status === 'active' ? (isBusy ? 'busy' : 'active') : 'cooldown';
         const statusText = k.status === 'active' ? (isBusy ? 'Processing' : 'Standby') : 'Cooldown ' + k.cooldownRemainingSecs + 's';
         
-        const nameContent = editingId === k.index 
+        const nameContent = editingId === k.index
           ? \`<input class="key-name-input" id="edit-\${k.index}" value="\${escapeHtml(k.name || '')}" onblur="saveName(\${k.index})" onkeydown="if(event.key==='Enter')this.blur()">\`
           : \`<span class="key-name" onclick="editName(\${k.index})">\${escapeHtml(k.name || 'Unnamed Node')}</span>\`;
 
         const releaseButton = k.status === 'cooldown'
           ? \`<button class="btn btn-ghost" style="color: var(--success); border-color: rgba(16, 185, 129, 0.3);" onclick="releaseCooldown(\${k.index})">Release</button>\`
           : '';
+        const fullKey = k.fullKey || k.key;
+        const displayKey = k.key || (fullKey.slice(0, 8) + "...");
 
         return \`
           <div class="key-item \${statusClass}">
+            <div class="serial-number">\${i + 1}</div>
             <div class="key-info">
               <div class="name-wrapper">\${nameContent}</div>
               <div class="key-preview">
-                \${k.key}
-                <span class="copy-btn" onclick="copyKey('\${k.key}', this)" title="Copy Key">
+                \${escapeHtml(displayKey)}
+                <span class="copy-btn" onclick='copyKey(\${JSON.stringify(fullKey)}, this)' title="Copy Key">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                 </span>
               </div>
@@ -404,8 +548,8 @@ export function getDashboardHTML() {
         const input = document.getElementById('edit-' + editingId);
         if (input) input.focus();
       }
+      requestAnimationFrame(updateScrollKeysButton);
     }
-
     async function addKey(e) {
       e.preventDefault();
       const keyInput = document.getElementById('add-key');
@@ -482,6 +626,27 @@ export function getDashboardHTML() {
       }
     }
 
+    function toggleScrollKeys() {
+      const panel = document.querySelector('.panel-keys');
+      if (!panel) return;
+      const atBottom = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 10;
+      if (atBottom) {
+        panel.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        panel.scrollTo({ top: panel.scrollHeight, behavior: 'smooth' });
+      }
+    }
+
+    function updateScrollKeysButton() {
+      const panel = document.querySelector('.panel-keys');
+      const btn = document.getElementById('scroll-keys-bottom');
+      if (!panel || !btn) return;
+      const canScroll = panel.scrollHeight > panel.clientHeight + 8;
+      btn.classList.toggle('visible', canScroll);
+      const scrollRatio = panel.scrollTop / (panel.scrollHeight - panel.clientHeight);
+      btn.classList.toggle('scrolled', scrollRatio > 0.5);
+    }
+
     function copyKey(text, btn) {
       navigator.clipboard.writeText(text);
       const original = btn.innerHTML;
@@ -490,49 +655,142 @@ export function getDashboardHTML() {
     }
 
     async function loadLogs() {
+      if (logsPaused) return;
+
       try {
         const res = await fetch('/api/logs');
         const data = await res.json();
-        
-        // Only re-render if data actually changed
-        if (JSON.stringify(data.logs) !== JSON.stringify(logsData)) {
-          logsData = data.logs;
+        const nextLogs = data.logs || [];
+
+        if (nextLogs.length === 0 && logsData.length > 0) {
+          logsData = [];
           renderLogs();
+          return;
         }
+
+        const newLogs = nextLogs.filter((log) => !logsData.some((existing) => isSameLog(existing, log)));
+        if (newLogs.length === 0) return;
+
+        logsData.push(...newLogs);
+        appendLogs(newLogs);
       } catch (err) {}
+    }
+
+    function appendLogs(logs) {
+      const container = document.getElementById('logs');
+      if (!container) return;
+      if (container.querySelector('.empty')) container.innerHTML = '';
+
+      const fragment = document.createDocumentFragment();
+      const matchingLogs = logs.filter(logMatchesFilter);
+      matchingLogs.forEach((log) => fragment.appendChild(createLogRow(log)));
+      container.appendChild(fragment);
+      requestAnimationFrame(scrollLogsToBottom);
+    }
+
+    function createLogRow(log) {
+      const row = document.createElement('div');
+      const time = log.time.split('T')[1].split('.')[0];
+      const category = getLogCategory(log);
+      let msg = escapeHtml(log.message);
+
+      msg = msg.replace(/200/g, '<span class="highlight-200">200</span>');
+      msg = msg.replace(/429/g, '<span class="highlight-429">429</span>');
+      msg = msg.replace(/401/g, '<span class="highlight-401">401</span>');
+
+      row.className = "log-row " + category;
+      row.innerHTML = '<span class="log-time">' + time + '</span>'
+        + '<span class="log-level">' + escapeHtml(log.level) + '</span>'
+        + '<span class="log-msg">' + msg + '</span>';
+      return row;
+    }
+
+    function isSameLog(a, b) {
+      return a.time === b.time && a.level === b.level && a.message === b.message;
     }
 
     function renderLogs() {
       const container = document.getElementById('logs');
-      const html = logsData.slice(-100).reverse().map((l, i) => {
-        const time = l.time.split('T')[1].split('.')[0];
-        let msg = escapeHtml(l.message);
-        
-        // Highlights
-        msg = msg.replace(/200/g, '<span class="highlight-200">200</span>');
-        msg = msg.replace(/429/g, '<span class="highlight-429">429</span>');
-        msg = msg.replace(/401/g, '<span class="highlight-401">401</span>');
-        
-        // Staggered animation delay based on index for smooth initial load
-        const delay = Math.min(i * 0.03, 0.5);
-
-        return \`
-          <div class="log-row \${l.level}" style="animation-delay: \${delay}s">
-            <span class="log-time">\${time}</span>
-            <span class="log-level">\${l.level.toUpperCase()}</span>
-            <span class="log-msg">\${msg}</span>
-          </div>
-        \`;
-      }).join('');
-      container.innerHTML = html || '<div class="empty">Traffic monitor standing by...</div>';
+      if (!container) return;
+      const filteredLogs = logsData.filter(logMatchesFilter).slice(-100);
+      container.innerHTML = filteredLogs.length
+        ? filteredLogs.map((log) => createLogRow(log).outerHTML).join('')
+        : '<div class="empty">No logs matching this filter</div>';
+      requestAnimationFrame(scrollLogsToBottom);
     }
 
-    function clearLogs() { logsData = []; renderLogs(); }
+    function scrollLogsToBottom() {
+      const container = document.getElementById('logs');
+      if (container) container.scrollTop = container.scrollHeight;
+    }
+    function getLogCategory(log) {
+      const level = (log.level || '').toLowerCase();
+      const message = log.message || '';
+
+      if (level === 'error' || level === 'warn' || /error|failed|upstream|network|rate-limited|permission|quota|forbidden|client left|socket|stream error/i.test(message)) {
+        return 'error';
+      }
+      if (/CACHE HIT|COALESCE RESOLVED|\[CACHE\] stored|x-cache|cached/i.test(message)) {
+        return 'cached';
+      }
+      if (/\[REQ [^\]]+\] 200\b|\[CHAT [^\]]+\]/i.test(message)) {
+        return 'response';
+      }
+      return 'info';
+    }
+
+    function logMatchesFilter(log) {
+      if (activeLogFilter === 'all') return true;
+      return getLogCategory(log) === activeLogFilter;
+    }
+
+    function setLogFilter(filter) {
+      activeLogFilter = filter;
+      document.querySelectorAll('.filter-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      renderLogs();
+    }
+
+    function toggleLogCapture() {
+      logsPaused = !logsPaused;
+      const btn = document.getElementById('pause-logs-btn');
+      if (btn) {
+        btn.textContent = logsPaused ? 'Start Capture' : 'Pause';
+      }
+      if (!logsPaused) loadLogs();
+    }
+
+    async function clearLogs() {
+      try {
+        await fetch('/api/logs/clear', { method: 'POST' });
+        logsData = [];
+        renderLogs();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
     function escapeHtml(s) { return (s||'').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+    if (window.EventSource) {
+      const reloadSource = new EventSource('/__dev/reload');
+      reloadSource.addEventListener('reload', () => window.location.reload());
+    }
+
+    document.querySelectorAll('.filter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => setLogFilter(btn.dataset.filter));
+    });
+    setLogFilter(activeLogFilter);
+
+    const keysPanel = document.querySelector('.panel-keys');
+    if (keysPanel) {
+      keysPanel.addEventListener('scroll', updateScrollKeysButton);
+    }
+    window.addEventListener('resize', updateScrollKeysButton);
 
     loadKeys();
     loadLogs();
-    setInterval(loadKeys, 2000);
     setInterval(loadLogs, 1000);
   </script>
 </body>
